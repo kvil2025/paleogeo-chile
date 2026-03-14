@@ -6,6 +6,15 @@ import { useEffect, useRef, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import { MAP_CONFIG, SATELLITE_SOURCE, TOPO_SOURCE, LAYER_IDS } from '../config/mapConfig';
 import { addFossilLayers, toggleFossilLayers } from '../layers/fossilLayer';
+import {
+  POT_SOURCE_ID,
+  POT_FILL_LAYER_ID,
+  POT_OUTLINE_LAYER_ID,
+  loadPotencialidadData,
+  addPotencialidadLayers,
+  setPotencialidadVisibility,
+  setPotencialidadOpacity,
+} from '../layers/potencialidadLayer';
 
 export default function MapView({
   mapRef,
@@ -15,20 +24,11 @@ export default function MapView({
   fossilData,
   onFeatureClick,
   geologyOpacity,
+  onGeologyLoadProgress,
 }) {
   const containerRef = useRef(null);
   const dataLoadedRef = useRef({ fossils: false, geology: false });
-
-  // BGS World Geology WMS — covers Chile at 1:5M scale (free, OGC standard)
-  const BGS_WMS_URL =
-    'https://ogc.bgs.ac.uk/cgi-bin/BGS_Bedrock_and_Resurficial_Geology/wms?' +
-    'SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap' +
-    '&LAYERS=GBG%3AWORLD_BEDROCK_GEOL_1_5M&STYLES=default' +
-    '&FORMAT=image%2Fpng&TRANSPARENT=true&CRS={crs}' +
-    '&WIDTH={width}&HEIGHT={height}&BBOX={bbox}';
-
-  const GEO_SOURCE_ID = 'bgs-geology';
-  const GEO_LAYER_ID  = 'bgs-geology-layer';
+  const abortRef = useRef(null);
 
   // Initialize Map
   useEffect(() => {
@@ -54,6 +54,7 @@ export default function MapView({
     });
 
     return () => {
+      abortRef.current?.abort();
       mapRef.current = null;
       map.remove();
     };
@@ -91,37 +92,37 @@ export default function MapView({
     if (dataLoadedRef.current.fossils) toggleFossilLayers(map, layers.fossils);
   }, [layers.fossils]);
 
-  // Add / toggle BGS Geology WMS
-  const addGeologyLayer = useCallback((map) => {
+  // ── CMN/SERNAGEOMIN Potencialidad Paleontológica ──────────────
+  const addGeologyLayer = useCallback(async (map) => {
     if (dataLoadedRef.current.geology) return;
-    if (map.getSource(GEO_SOURCE_ID)) return;
 
-    map.addSource(GEO_SOURCE_ID, {
-      type: 'raster',
-      tiles: [
-        'https://ogc.bgs.ac.uk/cgi-bin/BGS_Bedrock_and_Resurficial_Geology/wms?' +
-        'SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap' +
-        '&LAYERS=GBG%3AWORLD_BEDROCK_GEOL_1_5M&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=TRUE' +
-        '&SRS=EPSG:3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}'
-      ],
-      tileSize: 256,
-      attribution: '© BGS / OneGeology — geología mundial 1:5M'
-    });
+    // Cancel any previous load
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
-    // Insert geology layer BELOW fossil layers so fossils stay on top
-    const firstFossilLayer = map.getStyle().layers.find(l => l.id.startsWith('fossil'));
-    map.addLayer({
-      id: GEO_LAYER_ID,
-      type: 'raster',
-      source: GEO_SOURCE_ID,
-      paint: {
-        'raster-opacity': geologyOpacity,
-        'raster-fade-duration': 300,
-      },
-      layout: { visibility: 'visible' },
-    }, firstFossilLayer?.id);
+    onGeologyLoadProgress?.(0, 14);
 
-    dataLoadedRef.current.geology = true;
+    try {
+      const geojson = await loadPotencialidadData(
+        abortRef.current.signal,
+        (loaded, total) => onGeologyLoadProgress?.(loaded, total)
+      );
+
+      if (abortRef.current.signal.aborted) return;
+
+      // Find first fossil layer to insert below
+      const firstFossilLayer = map.getStyle().layers.find(l =>
+        l.id.startsWith('fossil') || l.id.startsWith(LAYER_IDS.FOSSILS_CLUSTER ?? 'fossil')
+      );
+
+      addPotencialidadLayers(map, geojson, geologyOpacity, firstFossilLayer?.id);
+      dataLoadedRef.current.geology = true;
+      onGeologyLoadProgress?.(14, 14); // done
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('[potencialidad] Error cargando capa:', err);
+      }
+    }
   }, [geologyOpacity]);
 
   useEffect(() => {
@@ -132,20 +133,20 @@ export default function MapView({
       if (!dataLoadedRef.current.geology) {
         addGeologyLayer(map);
       } else {
-        if (map.getLayer(GEO_LAYER_ID))
-          map.setLayoutProperty(GEO_LAYER_ID, 'visibility', 'visible');
+        setPotencialidadVisibility(map, true);
       }
     } else {
-      if (map.getLayer(GEO_LAYER_ID))
-        map.setLayoutProperty(GEO_LAYER_ID, 'visibility', 'none');
+      if (dataLoadedRef.current.geology) {
+        setPotencialidadVisibility(map, false);
+      }
     }
   }, [layers.geology, addGeologyLayer]);
 
   // Update geology opacity
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.getLayer(GEO_LAYER_ID)) return;
-    map.setPaintProperty(GEO_LAYER_ID, 'raster-opacity', geologyOpacity);
+    if (!map || !dataLoadedRef.current.geology) return;
+    setPotencialidadOpacity(map, geologyOpacity);
   }, [geologyOpacity]);
 
   // Base map toggle (satellite / streets / topo)

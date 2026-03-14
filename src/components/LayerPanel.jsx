@@ -4,6 +4,17 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Icons } from './Icons';
+import { POTENCIAL_COLORS } from '../layers/potencialidadLayer';
+
+// Legend items for Potencialidad Paleontológica
+const LEGEND_ITEMS = [
+  { label: 'Fosilífero',     color: POTENCIAL_COLORS['Fosilífero'] },
+  { label: 'Alto',           color: POTENCIAL_COLORS['Alto'] },
+  { label: 'Medio',          color: POTENCIAL_COLORS['Medio'] },
+  { label: 'Bajo',           color: POTENCIAL_COLORS['Bajo'] },
+  { label: 'Sin Potencial',  color: POTENCIAL_COLORS['Sin Potencial'] },
+  { label: 'Sin datos',      color: POTENCIAL_COLORS['Sin información'] },
+];
 
 export default function LayerPanel({
   layers,
@@ -13,6 +24,7 @@ export default function LayerPanel({
   fossilCount,
   geologyOpacity,
   onGeologyOpacityChange,
+  geologyLoadProgress,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef(null);
@@ -27,6 +39,15 @@ export default function LayerPanel({
     if (isOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
+
+  // Derive loading state
+  const geoLoading = layers.geology &&
+    geologyLoadProgress &&
+    !geologyLoadProgress.done &&
+    geologyLoadProgress.loaded < geologyLoadProgress.total;
+  const geoProgress = geologyLoadProgress
+    ? Math.round((geologyLoadProgress.loaded / geologyLoadProgress.total) * 100)
+    : 0;
 
   return (
     <div ref={panelRef} className="fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3">
@@ -92,36 +113,82 @@ export default function LayerPanel({
               onChange={() => onToggleLayer('fossils')}
             />
 
-            {/* Geology */}
+            {/* Potencialidad Paleontológica CMN */}
             <LayerToggle
               color="#6EE7B7"
               icon={Icons.geology}
-              label="Geología"
-              sublabel="BGS World Geology 1:5M"
+              label="Potencialidad Paleontológica"
+              sublabel={
+                geoLoading
+                  ? `Cargando ${geologyLoadProgress.loaded}/${geologyLoadProgress.total} regiones…`
+                  : layers.geology && geologyLoadProgress?.done
+                    ? 'CMN · SERNAGEOMIN 2024'
+                    : 'CMN · SERNAGEOMIN 2024'
+              }
               checked={layers.geology}
               onChange={() => onToggleLayer('geology')}
             />
 
-            {/* Geology opacity slider */}
-            {layers.geology && (
-              <div className="pl-11 pr-2 pb-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-[var(--color-text-muted)]">Opacidad</span>
-                  <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
-                    {Math.round(geologyOpacity * 100)}%
-                  </span>
+            {/* Progress bar while loading */}
+            {geoLoading && (
+              <div className="pl-11 pr-2">
+                <div className="h-1 rounded-full bg-[var(--color-surface-600)] overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${geoProgress}%`,
+                      background: 'linear-gradient(to right, #6EE7B7, #34D399)',
+                    }}
+                  />
                 </div>
-                <input
-                  type="range"
-                  min="0.1" max="1" step="0.05"
-                  value={geologyOpacity}
-                  onChange={(e) => onGeologyOpacityChange(parseFloat(e.target.value))}
-                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                  style={{
-                    background: `linear-gradient(to right, #6EE7B7 ${geologyOpacity * 100}%, var(--color-surface-600) ${geologyOpacity * 100}%)`
-                  }}
-                />
               </div>
+            )}
+
+            {/* Opacity slider + Legend when active */}
+            {layers.geology && geologyLoadProgress?.done && (
+              <>
+                <div className="pl-11 pr-2 pb-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-[var(--color-text-muted)]">Opacidad</span>
+                    <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                      {Math.round(geologyOpacity * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.1" max="1" step="0.05"
+                    value={geologyOpacity}
+                    onChange={(e) => onGeologyOpacityChange(parseFloat(e.target.value))}
+                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #6EE7B7 ${geologyOpacity * 100}%, var(--color-surface-600) ${geologyOpacity * 100}%)`
+                    }}
+                  />
+                </div>
+
+                {/* Potencial Legend */}
+                <div className="pl-11 pr-2 pt-1">
+                  <p className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
+                    Leyenda
+                  </p>
+                  <div className="space-y-1">
+                    {LEGEND_ITEMS.map(({ label, color }) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-sm flex-shrink-0"
+                          style={{ backgroundColor: color, opacity: 0.85 }}
+                        />
+                        <span className="text-[10px] text-[var(--color-text-secondary)]">
+                          {label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[9px] text-[var(--color-text-muted)] mt-2 leading-tight">
+                    Fuente: Consejo de Monumentos Nacionales · SERNAGEOMIN
+                  </p>
+                </div>
+              </>
             )}
           </div>
 

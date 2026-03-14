@@ -28,7 +28,8 @@ export default function App() {
     fossils: true,
     geology: false,
   });
-  const [geologyOpacity, setGeologyOpacity] = useState(0.6);
+  const [geologyOpacity, setGeologyOpacity] = useState(0.65);
+  const [geologyLoadProgress, setGeologyLoadProgress] = useState({ loaded: 0, total: 14, done: false });
   const [baseMap, setBaseMap] = useState('streets');
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [activePeriod, setActivePeriod] = useState(null);
@@ -107,6 +108,9 @@ export default function App() {
         fossilData={fossilData}
         onFeatureClick={handleFeatureClick}
         geologyOpacity={geologyOpacity}
+        onGeologyLoadProgress={(loaded, total) =>
+          setGeologyLoadProgress({ loaded, total, done: loaded >= total })
+        }
       />
 
       {/* Status Bar */}
@@ -127,6 +131,7 @@ export default function App() {
           fossilCount={fossilCount}
           geologyOpacity={geologyOpacity}
           onGeologyOpacityChange={setGeologyOpacity}
+          geologyLoadProgress={geologyLoadProgress}
         />
       )}
 
