@@ -82,4 +82,12 @@ export const Icons = {
       <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
     </svg>
   ),
+  geology: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 18h20" />
+      <path d="M2 13c3-2 5 1 8 0s5-3 8-1" />
+      <path d="M2 8c3-2 5 2 8 0s5-2 8 0" />
+      <path d="M2 3h20" />
+    </svg>
+  ),
 };

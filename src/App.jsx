@@ -26,7 +26,9 @@ export default function App() {
   // UI State
   const [layers, setLayers] = useState({
     fossils: true,
+    geology: false,
   });
+  const [geologyOpacity, setGeologyOpacity] = useState(0.6);
   const [baseMap, setBaseMap] = useState('streets');
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [activePeriod, setActivePeriod] = useState(null);
@@ -104,6 +106,7 @@ export default function App() {
         baseMap={baseMap}
         fossilData={fossilData}
         onFeatureClick={handleFeatureClick}
+        geologyOpacity={geologyOpacity}
       />
 
       {/* Status Bar */}
@@ -122,6 +125,8 @@ export default function App() {
           baseMap={baseMap}
           onBaseMapChange={setBaseMap}
           fossilCount={fossilCount}
+          geologyOpacity={geologyOpacity}
+          onGeologyOpacityChange={setGeologyOpacity}
         />
       )}
 

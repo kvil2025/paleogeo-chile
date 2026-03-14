@@ -11,6 +11,8 @@ export default function LayerPanel({
   baseMap,
   onBaseMapChange,
   fossilCount,
+  geologyOpacity,
+  onGeologyOpacityChange,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef(null);
@@ -89,6 +91,38 @@ export default function LayerPanel({
               checked={layers.fossils}
               onChange={() => onToggleLayer('fossils')}
             />
+
+            {/* Geology */}
+            <LayerToggle
+              color="#6EE7B7"
+              icon={Icons.geology}
+              label="Geología"
+              sublabel="BGS World Geology 1:5M"
+              checked={layers.geology}
+              onChange={() => onToggleLayer('geology')}
+            />
+
+            {/* Geology opacity slider */}
+            {layers.geology && (
+              <div className="pl-11 pr-2 pb-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-[var(--color-text-muted)]">Opacidad</span>
+                  <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                    {Math.round(geologyOpacity * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0.1" max="1" step="0.05"
+                  value={geologyOpacity}
+                  onChange={(e) => onGeologyOpacityChange(parseFloat(e.target.value))}
+                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #6EE7B7 ${geologyOpacity * 100}%, var(--color-surface-600) ${geologyOpacity * 100}%)`
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Footer */}
